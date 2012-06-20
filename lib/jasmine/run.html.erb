@@ -14,14 +14,110 @@
 
   <script type="text/javascript">
     var jsApiReporter;
+
+    // consoleReporter
+    (function() {
+      (function(jasmine, console) {
+        var ANSI, ConsoleReporter, proto;
+        if (!jasmine) {
+          throw "jasmine library isn't loaded!";
+        }
+        ANSI = {};
+        ANSI.color_map = {
+          green: 32,
+          red: 31
+        };
+        ANSI.colorize_text = function(text, color) {
+          var color_code;
+          color_code = this.color_map[color];
+          return "\u001b[" + color_code + "m" + text + "\u001b[0m";
+        };
+        ConsoleReporter = function() {
+          if (!console || !console.log) {
+            throw "console isn't present!";
+          }
+          return this.status = this.statuses.stopped;
+        };
+        proto = ConsoleReporter.prototype;
+        proto.statuses = {
+          stopped: "stopped",
+          running: "running",
+          fail: "fail",
+          success: "success"
+        };
+        proto.reportRunnerStarting = function(runner) {
+          this.status = this.statuses.running;
+          this.start_time = (new Date()).getTime();
+          this.executed_specs = 0;
+          this.passed_specs = 0;
+          return this.log("Starting...");
+        };
+        proto.reportRunnerResults = function(runner) {
+          var color, dur, fail_str, failed, spec_str;
+          failed = this.executed_specs - this.passed_specs;
+          spec_str = this.executed_specs + (this.executed_specs === 1 ? " spec, " : " specs, ");
+          fail_str = failed + (failed === 1 ? " failure in " : " failures in ");
+          color = (failed > 0 ? "red" : "green");
+          dur = (new Date()).getTime() - this.start_time;
+          this.log("");
+          this.log("Finished");
+          this.log("-----------------");
+          this.log(spec_str + fail_str + (dur / 1000) + "s.", color);
+          this.status = (failed > 0 ? this.statuses.fail : this.statuses.success);
+          this.log("");
+          return this.log("ConsoleReporter finished");
+        };
+        proto.reportSpecStarting = function(spec) {
+          return this.executed_specs++;
+        };
+        proto.reportSpecResults = function(spec) {
+          var i, items, resultText, text, _results;
+          if (spec.results().passed()) {
+            this.passed_specs++;
+            return;
+          }
+          resultText = spec.suite.description + " : " + spec.description;
+          this.log(resultText, "red");
+          items = spec.results().getItems();
+          i = 0;
+          _results = [];
+          while (i < items.length) {
+            text = items[i].trace;
+            this.log(text, "red");
+            _results.push(i++);
+          }
+          return _results;
+        };
+        proto.reportSuiteResults = function(suite) {
+          var color, failed, results;
+          if (!suite.parentSuite) {
+            return;
+          }
+          results = suite.results();
+          failed = results.totalCount - results.passedCount;
+          color = (failed > 0 ? "red" : "green");
+          return this.log(suite.description + ": " + results.passedCount + " of " + results.totalCount + " passed.", color);
+        };
+        proto.log = function(str, color) {
+          var text;
+          text = (color !== undefined ? ANSI.colorize_text(str, color) : str);
+          return console.log(text);
+        };
+        return jasmine.ConsoleReporter = ConsoleReporter;
+      })(jasmine, console);
+    }).call(this);
+
+
     (function() {
       var jasmineEnv = jasmine.getEnv();
 
       jsApiReporter = new jasmine.JsApiReporter();
       var htmlReporter = new jasmine.HtmlReporter();
+      window.consoleReporter = new jasmine.ConsoleReporter();
 
       jasmineEnv.addReporter(jsApiReporter);
       jasmineEnv.addReporter(htmlReporter);
+      jasmineEnv.addReporter(consoleReporter)
 
       jasmineEnv.specFilter = function(spec) {
         return htmlReporter.specFilter(spec);
