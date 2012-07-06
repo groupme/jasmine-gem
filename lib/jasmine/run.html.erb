@@ -112,12 +112,15 @@
       var jasmineEnv = jasmine.getEnv();
 
       jsApiReporter = new jasmine.JsApiReporter();
-      var htmlReporter = new jasmine.HtmlReporter();
-      window.consoleReporter = new jasmine.ConsoleReporter();
 
+      if( window.navigator.userAgent.match(/phantomjs/i) ) {
+        window.consoleReporter = new jasmine.ConsoleReporter();
+        jasmineEnv.addReporter(consoleReporter)
+      }
+
+      var htmlReporter = new jasmine.HtmlReporter();
       jasmineEnv.addReporter(jsApiReporter);
       jasmineEnv.addReporter(htmlReporter);
-      jasmineEnv.addReporter(consoleReporter)
 
       jasmineEnv.specFilter = function(spec) {
         return htmlReporter.specFilter(spec);
